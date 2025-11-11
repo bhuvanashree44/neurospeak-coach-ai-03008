@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Hero } from "@/components/Hero";
-import { EvaluationForm } from "@/components/EvaluationForm";
-import { EvaluationResult } from "@/components/EvaluationResult";
+import { ModeSwitcher } from "@/components/ModeSwitcher";
+import { TeacherMode } from "@/components/TeacherMode";
+import { FriendMode } from "@/components/FriendMode";
 import { LearningGraph } from "@/components/LearningGraph";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
+  const [mode, setMode] = useState<"teacher" | "friend">("teacher");
   const [isLoading, setIsLoading] = useState(false);
   const [evaluation, setEvaluation] = useState<{
     score: number;
@@ -17,18 +19,38 @@ const Index = () => {
       missing: string[];
     };
   } | null>(null);
+  const [learningData, setLearningData] = useState<Array<{ date: string; score: number; mode: string }>>([]);
   const { toast } = useToast();
 
-  // Sample data for the learning graph (0-5 scale)
-  const [learningData, setLearningData] = useState([
-    { date: "Week 1", score: 2.5 },
-    { date: "Week 2", score: 3.0 },
-    { date: "Week 3", score: 3.5 },
-    { date: "Week 4", score: 4.0 },
-    { date: "Week 5", score: 4.2 },
-  ]);
+  useEffect(() => {
+    fetchLearningData();
+  }, []);
 
-  const handleSubmit = async (topic: string, answer: string, bertKeywords: string[]) => {
+  const fetchLearningData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('learning_sessions')
+        .select('score, created_at, mode, topic')
+        .not('score', 'is', null)
+        .order('created_at', { ascending: true })
+        .limit(20);
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedData = data.map(session => ({
+          date: new Date(session.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          score: Number(session.score),
+          mode: session.mode
+        }));
+        setLearningData(formattedData);
+      }
+    } catch (error) {
+      console.error('Error fetching learning data:', error);
+    }
+  };
+
+  const handleTeacherSubmit = async (topic: string, answer: string, bertKeywords: string[]) => {
     setIsLoading(true);
     
     try {
@@ -48,10 +70,16 @@ const Index = () => {
       };
       
       setEvaluation(result);
+
+      // Save to database
+      await supabase.from('learning_sessions').insert({
+        mode: 'teacher',
+        topic,
+        score: data.score
+      });
       
-      // Update learning data
-      const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      setLearningData(prev => [...prev, { date: today, score: data.score }]);
+      // Refresh learning data
+      await fetchLearningData();
       
       toast({
         title: "Evaluation Complete!",
@@ -74,21 +102,24 @@ const Index = () => {
     }
   };
 
+  const handleFriendSessionComplete = async (score: number, topic: string) => {
+    await fetchLearningData();
+  };
+
   return (
     <div className="min-h-screen">
       <Hero />
       
-      <EvaluationForm onSubmit={handleSubmit} isLoading={isLoading} />
+      <ModeSwitcher mode={mode} onModeChange={setMode} />
       
-      {evaluation && (
-        <div id="evaluation-results">
-          <EvaluationResult 
-            score={evaluation.score}
-            feedback={evaluation.feedback}
-            topic={evaluation.topic}
-            keywords={evaluation.keywords}
-          />
-        </div>
+      {mode === "teacher" ? (
+        <TeacherMode 
+          isLoading={isLoading}
+          evaluation={evaluation}
+          onSubmit={handleTeacherSubmit}
+        />
+      ) : (
+        <FriendMode onSessionComplete={handleFriendSessionComplete} />
       )}
       
       <LearningGraph data={learningData} />
