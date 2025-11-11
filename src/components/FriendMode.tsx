@@ -60,7 +60,7 @@ export const FriendMode = ({ onSessionComplete }: FriendModeProps) => {
       
       const welcomeMsg: Message = {
         role: "assistant",
-        content: `Hey! I'm here to help you understand ${topic}. Tell me what you know about it so far, or ask me anything!`
+        content: `Hey! 👋 So you wanna learn about ${topic}? That's awesome! Tell me what you already know about it, or just ask me anything - no wrong answers here!`
       };
       setMessages([welcomeMsg]);
 
@@ -212,19 +212,19 @@ export const FriendMode = ({ onSessionComplete }: FriendModeProps) => {
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto">
             <Card className="p-8">
-              <h2 className="text-3xl font-bold mb-4 text-center">Friend Mode</h2>
+              <h2 className="text-3xl font-bold mb-4 text-center">Friend Mode 🤝</h2>
               <p className="text-muted-foreground mb-6 text-center">
-                Let's have a conversation! I'll help you understand any topic by asking questions and discussing with you.
+                Let's chat and figure this out together! I'm here to help you understand anything - just like a study buddy would.
               </p>
               <div className="space-y-4">
                 <Input
-                  placeholder="What topic do you want to learn about?"
+                  placeholder="What do you want to learn about? 😊"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && startSession()}
                 />
                 <Button onClick={startSession} className="w-full" size="lg">
-                  Start Conversation
+                  Let's Chat! 💬
                 </Button>
               </div>
             </Card>
